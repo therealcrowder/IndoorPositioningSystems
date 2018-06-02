@@ -15,6 +15,67 @@ Fill in after writing the paper
 ### Introduction
 This case was explored in detail in the book by Deborah Nolan and Duncan Temple Lang called "Data Science in R: A Case Studies Approach to Computational Resoning and Problem Solving". Indoor Positioning Systems (IPS) are often used because what we know as Global Positioning Systems (GPS) have a hard time working within buildings. Given the grwoth of wireless local area networks (LANs),IPS have the ability to use WiFi signals detected from network access points. Often questions about where is an object whether it be another person, yourself an object have the ability to be answered in real time.
 
+### Background
+Our [dataset](http://rdatasciencecases.org/Data/offline.final.trace.txt) is from a the Commmunity Resource for Archving Wireless Data At Dartmoth (CRAWDAD). The "offline" is a referenced dataset that houses signal strenghts measured with a hand-held device on a grid of 166 points spaced 1 meter apart located in the hallways of a building at the University of Mannheim in Germany.
+
+The floor plan measures 15 meters by 36 meters (49 feet by 118 feet). A floor plan is given in figure 1.
+
+![Figure 1: Floor Plan of the Test Environment. *There are 6 fixed access points which are denoted by black square markers. The "offline" training data were collected at the locations marked with the grey dots. We can see that the grey dots are spaced a meter apart.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/floorPlan.png)
+Grey circles give us a reference to mark the locations in which the "offline" mesurements were taken and the black squares mark six access points. The reference locations give us a calibration of the signal strengths for in the building. These locations will be used to build our model to predict the locations of our hand-held device when it's location is unknown.
+
+The hand-held device provided us with x and y coordinates, much like that of latitude and longitude on a map. There is also an orientation of the device. Signal strengths are given at eight orientations in 45 degree increments (0, 45, 90 and so on). 110 signal strength measurents were recorded for each of the six access points for every location and orientation combination.
+
+We had a couple of ways of setting up the data in this analysis, without getting into too much detail below is a table of the variables in the dataset that we will use in the analysis.
+
+Variable  | Description
+------------- | -------------
+t | timestamp in milliseconds since midnight, January 1, 1970 UTC
+id | MAC address of the scanning device
+pos | degree orientation of the user carrying the scanning device
+MAC | MAC address of a responsding peer (i.e. access point or a device in adhoc mode) with values for signal strenght in dBm (Decibel-milliwatts)
+Reference Style Links and Images
+
 
 ### Libraries Required
 If you don't have these libraries installed in your R environment please do so.
+```{r}
+# Place R code here #
+```
+
+#### Read in the data
+```{r tidy = TRUE}
+# Use URL to bring in text data
+url <- "http://rdatasciencecases.org/Data/offline.final.trace.txt"
+# Read in entire document
+txt <- readLines(url)
+# Each line in the offline file has been read into R as a string in the character vector txt
+# Use the function substr() to locate lines/strings that start with '#' and count how many we have
+sum(substr(txt, 1, 1) == "#")
+length(txt)
+```
+With our "offline" dataset there are 151,392 lines. The data documentation would tell us that we should expect there to be 146,080 lines (166 locations x 8 angles x 100 recordings). The difference between these two (151,392 and 146,080) is 5,312.
+
+As a general rule it is better to check the entire dataset instead of the first few lines.
+
+#### Processing the Raw Data
+
+Now that we have an idea of how to repersent our data in R, we are now able to start the fun stuff. The data as is not in a format where we can simply use a function like read.table(). Our data are sperated by semicolons. This gives us a basic structure in which we can process the data.
+
+```{r tidy = TRUE}
+strsplit(txt[4], ";")[[1]]
+```
+
+So, within these shorter strings, the "name" of the variable is seperated by an '=' sign from the associated value. There are observations that contain multiple values where the separator is a ','. For example, "pos=0.0,0.0,0.0" consists of 3 position variables that are not named.
+
+The vector, which is created by splitting on the semi-colon, and futher split each element at the '=' sign is processed by splitting ','. We can create a function like the below:
+```{r tidy = TRUE}
+unlist(lapply(strsplit(txt[4], ";")[[1]],
+  function(x)
+    sapply(strsplit(x, "=")[[1]], strsplit, ",")))
+```
+
+We can make this more efficent by taking the "tokens" we created from above and form them into the appropriate form by using
+```{r tidy=TRUE}
+# create a spilt using ;,=,','
+tokens <- strsplit(txt[4], "[;=,]")[[1]]
+```
