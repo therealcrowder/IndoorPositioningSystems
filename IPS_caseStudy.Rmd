@@ -33,7 +33,6 @@ t | timestamp in milliseconds since midnight, January 1, 1970 UTC
 id | MAC address of the scanning device
 pos | degree orientation of the user carrying the scanning device
 MAC | MAC address of a responsding peer (i.e. access point or a device in adhoc mode) with values for signal strenght in dBm (Decibel-milliwatts)
-Reference Style Links and Images
 
 
 ### Libraries Required
