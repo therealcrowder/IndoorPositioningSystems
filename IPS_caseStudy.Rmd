@@ -1,0 +1,20 @@
+---
+title: "Predicting Location via Indoor Positioning Systems"
+author: "Mike Crowder, Brian Kolovich, Brandon Lawerance, Geardo Garza"
+date: "6/2/2018"
+output: html_document
+---
+<style>
+body {
+text-align: justify}
+</style>
+
+### Abstract
+Fill in after writing the paper
+
+### Introduction
+This case was explored in detail in the book by Deborah Nolan and Duncan Temple Lang called "Data Science in R: A Case Studies Approach to Computational Resoning and Problem Solving". Indoor Positioning Systems (IPS) are often used because what we know as Global Positioning Systems (GPS) have a hard time working within buildings. Given the grwoth of wireless local area networks (LANs),IPS have the ability to use WiFi signals detected from network access points. Often questions about where is an object whether it be another person, yourself an object have the ability to be answered in real time.
+
+
+### Libraries Required
+If you don't have these libraries installed in your R environment please do so.
