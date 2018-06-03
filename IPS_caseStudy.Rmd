@@ -170,3 +170,94 @@ dim(offline)
 From the dim() function we can see we returned 1.18M rows. Our next step is convert our data into the proper data types. So we can do get to analysis and start looking at what this data is telling us.
 
 #### Cleaning the Data for Analysis
+
+First and foremost we need to name our variables. When naming variables, we have to make them meaningful.
+```{r tidy=TRUE}
+names(offline) = c("time", "scanMac", "posX", "posY", "posZ", 
+                   "orientation", "mac", "signal", 
+                   "channel", "type")
+```
+
+Now we covert the position, signal, and time variables to numeric.
+```{r tidy=TRUE}
+numVars = c("time", "posX", "posY", "posZ", 
+            "orientation", "signal")
+offline[ numVars ] =  lapply(offline[ numVars ], as.numeric)
+```
+
+The device could use a change to something that is more compreshensible than numbers 1 and 3. To facilitate this we can turn the variable into a factor with the levels, of "adhoc" and "access point". However, we will use only the signal strengths measured to the fix access points to develop and test our model. With this information now in hand we will remove records for adhoc measurements and remove the type variable from our data frame.
+```{r tidy=TRUE}
+offline = offline[ offline$type == "3", ]
+offline = offline[ , "type" != names(offline) ]
+dim(offline)
+```
+
+This removed over 100K observations from our data frame.
+
+From here we now consider the variable time. From the docuementation, time is measured in the number of milliseconds from midnight on January 1st, 1970. We are able to scale the value of time to seconds and then simpy set the class of the time element in order to see the values as date-times in R. We will keep the more accurate time in rawTime in the case it is needed at a later time for analysis.
+```{r tidy=TRUE}
+offline$rawTime = offline$time
+offline$time = offline$time/1000
+class(offline$time) = c("POSIXt", "POSIXct")
+```
+
+```{r tidy=TRUE}
+# Check what is going on
+unlist(lapply(offline, class))
+```
+
+From the looks of it, it would appear that we have the right data types and structure, now lets go through another check and look at a summary of our data to see if our data makes sense. We are going to be looking for sane values in the descriptive statistics.
+```{r tidy=TRUE}
+summary(offline[, numVars])
+```
+
+So far, so good. Let's check the character variables.
+```{r tidy=TRUE}
+summary(sapply(offline[ , c("mac", "channel", "scanMac")], as.factor))
+```
+
+From what we can see from the above character summary we have a couple of items we need may need to modify.
+  1.  We only have one value for scanMac. If you remember this is the MAC address for the hand-held device from which the measurement is taken. This variable will be discarded.
+  2.  All of the values for posZ, the elevation of the hand-held device are 0. Why zero? Well we are just measuring the first floor. We can remove that variable as well.
+
+We are now ready to start Exploratory Data Analysis (EDA)
+```{r tidy=TRUE}
+offline <- offline[ , !(names(offline) %in% c("scanMac", "posZ"))]
+```
+
+### Exploratory Data Analysis
+
+#### Orientation
+
+We have eight values for orientation, or we should. If the reader recalls the observations for orientation were set up to be at levels of 0 degrees, 45 degress, 90 degress and so on.
+```{r tidy=TRUE}
+length(unique(offline$orientation))
+```
+
+So, 203 is greater than 8. So we have more than eight values. We will take a closer look at the distribution of the variable orientation. We are going to do this by looking at an empirical cumulative distribution function, or ECDF.
+```{r tidy=TRUE}
+plot(ecdf(offline$orientation),
+  main = "Orientation Distribution",
+  xlab = "Orientation",
+  ylab = "Empirical CDF")
+```
+
+Form the plot we do see observations clustered around 0, 45, 90 degress and so on, but we clearly have spread between. So, for example we have some 47.5 degress, 358.2 degrees and so on. This is not a loss, this information could be valuable as is. We could also gain value from creating a bin for these values to match the orignial eight values. To accomplish this we are going to create a function.
+```{r tidy=TRUE}
+roundOrientation = function(angles) {
+  refs = seq(0, by = 45, length  = 9)
+  q = sapply(angles, function(o) which.min(abs(o - refs)))
+  c(refs[1:8], 0)[q]
+}
+# We now use our function to created the rounded angles
+offline$angle <- roundOrientation(offline$orientation)
+```
+
+Let's continue our analysis of orientation with a box plot with the new angles.
+```{r tidy=TRUE}
+with(offline, boxplot(orientation ~ angle,
+                      xlab = "nearest 45 degree angle",
+                      ylab = "orientation"))
+```
+
+Our new angle variable worked, the outlier at the 0 degree at the top left are the values near 360 degrees that have been mapped to zero.
