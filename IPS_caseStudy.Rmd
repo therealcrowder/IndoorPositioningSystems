@@ -13,26 +13,27 @@ text-align: justify}
 Fill in after writing the paper
 
 ### Introduction
-This case was explored in detail in the book by Deborah Nolan and Duncan Temple Lang called "Data Science in R: A Case Studies Approach to Computational Resoning and Problem Solving". Indoor Positioning Systems (IPS) are often used because what we know as Global Positioning Systems (GPS) have a hard time working within buildings. Given the grwoth of wireless local area networks (LANs),IPS have the ability to use WiFi signals detected from network access points. Often questions about where is an object whether it be another person, yourself an object have the ability to be answered in real time.
+This case was explored in detail in the book by Deborah Nolan and Duncan Temple Lang called "Data Science in R: A Case Studies Approach to Computational Reasoning and Problem Solving". Indoor Positioning Systems (IPS) are often used because what we know as Global Positioning Systems (GPS) have a hard time working within buildings. Given the growth of wireless local area networks (LANs),IPS have the ability to use WiFi signals detected from network access points. Often questions about where is an object whether it be another person, yourself an object have the ability to be answered in real time.
 
 ### Background
-Our [dataset](http://rdatasciencecases.org/Data/offline.final.trace.txt) is from a the Commmunity Resource for Archving Wireless Data At Dartmoth (CRAWDAD). The "offline" is a referenced dataset that houses signal strenghts measured with a hand-held device on a grid of 166 points spaced 1 meter apart located in the hallways of a building at the University of Mannheim in Germany.
+Our [dataset](http://rdatasciencecases.org/Data/offline.final.trace.txt) is from a the Community Resource for Archiving Wireless Data At Dartmouth (CRAWDAD). The "offline" is a referenced data set that houses signal strengths measured with a hand-held device on a grid of 166 points spaced 1 meter apart located in the hallways of a building at the University of Mannheim in Germany.
 
 The floor plan measures 15 meters by 36 meters (49 feet by 118 feet). A floor plan is given in figure 1.
 
 ![Figure 1: Floor Plan of the Test Environment. *There are 6 fixed access points which are denoted by black square markers. The "offline" training data were collected at the locations marked with the grey dots. We can see that the grey dots are spaced a meter apart.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/floorPlan.png)
-Grey circles give us a reference to mark the locations in which the "offline" mesurements were taken and the black squares mark six access points. The reference locations give us a calibration of the signal strengths for in the building. These locations will be used to build our model to predict the locations of our hand-held device when it's location is unknown.
 
-The hand-held device provided us with x and y coordinates, much like that of latitude and longitude on a map. There is also an orientation of the device. Signal strengths are given at eight orientations in 45 degree increments (0, 45, 90 and so on). 110 signal strength measurents were recorded for each of the six access points for every location and orientation combination.
+Grey circles give us a reference to mark the locations in which the "offline" measurements were taken and the black squares mark six access points. The reference locations give us a calibration of the signal strengths for in the building. These locations will be used to build our model to predict the locations of our hand-held device when it's location is unknown.
 
-We had a couple of ways of setting up the data in this analysis, without getting into too much detail below is a table of the variables in the dataset that we will use in the analysis.
+The hand-held device provided us with x and y coordinates, much like that of latitude and longitude on a map. There is also an orientation of the device. Signal strengths are given at eight orientations in 45 degree increments (0, 45, 90 and so on). 110 signal strength measurements were recorded for each of the six access points for every location and orientation combination.
+
+We had a couple of ways of setting up the data in this analysis, without getting into too much detail below is a table of the variables in the data set that we will use in the analysis.
 
 Variable  | Description
 ------------- | -------------
 t | timestamp in milliseconds since midnight, January 1, 1970 UTC
 id | MAC address of the scanning device
 pos | degree orientation of the user carrying the scanning device
-MAC | MAC address of a responsding peer (i.e. access point or a device in adhoc mode) with values for signal strenght in dBm (Decibel-milliwatts)
+MAC | MAC address of a responding peer (i.e. access point or a device in adhoc mode) with values for signal strength in dBm (Decibel-milliwatts)
 
 
 ### Libraries Required
@@ -52,29 +53,120 @@ txt <- readLines(url)
 sum(substr(txt, 1, 1) == "#")
 length(txt)
 ```
-With our "offline" dataset there are 151,392 lines. The data documentation would tell us that we should expect there to be 146,080 lines (166 locations x 8 angles x 100 recordings). The difference between these two (151,392 and 146,080) is 5,312.
+With our "offline" data set there are 151,392 lines. The data documentation would tell us that we should expect there to be 146,080 lines (166 locations x 8 angles x 100 recordings). The difference between these two (151,392 and 146,080) is 5,312.
 
-As a general rule it is better to check the entire dataset instead of the first few lines.
+As a general rule it is better to check the entire data set instead of the first few lines.
 
 #### Processing the Raw Data
 
-Now that we have an idea of how to repersent our data in R, we are now able to start the fun stuff. The data as is not in a format where we can simply use a function like read.table(). Our data are sperated by semicolons. This gives us a basic structure in which we can process the data.
+Now that we have an idea of how to represent our data in R, we are now able to start the fun stuff. The data as is not in a format where we can simply use a function like read.table(). Our data are separated by semicolons. This gives us a basic structure in which we can process the data.
 
 ```{r tidy = TRUE}
 strsplit(txt[4], ";")[[1]]
 ```
 
-So, within these shorter strings, the "name" of the variable is seperated by an '=' sign from the associated value. There are observations that contain multiple values where the separator is a ','. For example, "pos=0.0,0.0,0.0" consists of 3 position variables that are not named.
+So, within these shorter strings, the "name" of the variable is separated by an '=' sign from the associated value. There are observations that contain multiple values where the separator is a ','. For example, "pos=0.0,0.0,0.0" consists of 3 position variables that are not named.
 
-The vector, which is created by splitting on the semi-colon, and futher split each element at the '=' sign is processed by splitting ','. We can create a function like the below:
+The vector, which is created by splitting on the semi-colon, and further split each element at the '=' sign is processed by splitting ','. We can create a function like the below:
 ```{r tidy = TRUE}
 unlist(lapply(strsplit(txt[4], ";")[[1]],
   function(x)
     sapply(strsplit(x, "=")[[1]], strsplit, ",")))
 ```
 
-We can make this more efficent by taking the "tokens" we created from above and form them into the appropriate form by using
+We can make this more efficient by taking the "tokens" we created from above and form them into the appropriate form by using
 ```{r tidy=TRUE}
 # create a spilt using ;,=,','
 tokens <- strsplit(txt[4], "[;=,]")[[1]]
 ```
+
+Let's look at the first 10 elements of our "tokens" variable to give us the information about the hand-held device. We can also extract the values of these variables.
+```{r tidy=TRUE}
+tokens[1:10]
+# Extract values of variables
+tokens[c(2, 4, 6:8, 10)]
+```
+
+From our data information we know that these variables correspond to the variables time, MAC address, *x,y,z* and orientation.
+
+Take a look at the recorded signals within this observation. These are the remaining values in the split vector
+```{r tidy=TRUE}
+tokens[ - (1:10)]
+```
+
+These rows are a 4-column matrix or data frame giving the MAC address, signal, channel and device type. We need to detangle these and build a matrix. After the detanglement we can bind these columns with the values from the first 10 entries.
+```{r tidy = TRUE}
+tmp <- matrix(tokens[ - (1:10 ) ], ncol = 4, byrow = TRUE)
+mat <- cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow = nrow(tmp),
+  ncol = 6, byrow = TRUE), tmp)
+# Check
+dim(mat)
+```
+
+Now that we know that the above chunk of code works we can build a function to iterate through each row in the input file.
+```{r tidy=TRUE}
+processLine =
+function(x)
+{
+  tokens = strsplit(x, "[;=,]")[[1]]
+  tmp = matrix(tokens[ - (1:10) ], ncol = 4, byrow = TRUE)
+  cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow = nrow(tmp),
+               ncol = 6, byrow = TRUE), tmp)
+}
+```
+
+Try to apply the function to several lines of the input:
+```{r tidy=TRUE}
+tmp = lapply(txt[4:20], processLine)
+sapply(tmp, nrow)
+```
+
+Now that we have done the work of looking at the data, deciding the best way to break it down and the best way of separating it, we can now look at making this into a data frame. Do execute this we are going to use the do.call() function.
+```{r tidy=TRUE}
+offline = as.data.frame(do.call("rbind", tmp))
+# Check it
+dim(offline)
+```
+
+#### Validate Our Dataset
+
+Work code through the entire data set
+```{r tidy=TRUE}
+lines <- txt[ substr(txt, 1, 1) != "#" ]
+tmp = lapply(lines, processLine)
+```
+
+Well, lets dig to see what is going on here
+```{r tidy=TRUE}
+options(error = recover, warn = 2)
+tmp = lapply(lines, processLine)
+```
+
+We will need to modify the function we made call ProcessLine(). We need to discard observations or add a single channel, and type. We will choose to remove these observations as they do not help us in developing our position system. Change the function to return NULL if the tokens vector only has 10 elements. The revised function becomes:
+```{r tidy=TRUE}
+processLine = function(x)
+{
+  tokens = strsplit(x, "[;=,]")[[1]]
+  
+  if (length(tokens) == 10) 
+    return(NULL)
+ 
+  tmp = matrix(tokens[ - (1:10) ], , 4, byrow = TRUE)
+  cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow(tmp), 6, 
+               byrow = TRUE), tmp)
+}
+```
+
+Try again
+```{r tidy=TRUE}
+options(error = recover, warn = 1)
+tmp <- lapply(lines, processLine)
+offline <- as.data.frame(do.call("rbind", tmp), 
+                        stringsAsFactors = FALSE)
+
+dim(offline)
+```
+
+From the dim() function we can see we returned 1.18M rows. Our next step is convert our data into the proper data types. So we can do get to analysis and start looking at what this data is telling us.
+
+#### Cleaning the Data for Analysis
