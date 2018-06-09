@@ -39,7 +39,9 @@ MAC | MAC address of a responding peer (i.e. access point or a device in adhoc m
 ### Libraries Required
 If you don't have these libraries installed in your R environment please do so.
 ```{r}
-# Place R code here #
+library(codetools)
+library(lattice)
+library(fields)
 ```
 
 #### Read in the data
@@ -349,3 +351,201 @@ dev.off()
 This picture in figure 2 should look familar. It looks just like our floorplan from figure 1. We can see that there are roughly the same number signals detected at each location.
 
 ![Figure 2: Counts of signals at each position. *Plotted at each location in the building is the total number of signals detected from all access points for the offline data. In a perfect world there is 110 signals measured with 8 angles for each 6 access points for a total of 5,280 recordings. These data include a 7th MAC address and not all signals were detected, so there are about 5,500 recordings at each location.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_XYByCount.pdf)
+
+We have examined all of the variables with exception of time and signal. The process has helped us clean our data and reduce it to those records that are releant to our analysis. We now leave the examination of the signals to the next section where we study the it's distributional properties. Time is not directly related to our model, but it does give us the order in which the observations were taken. In an expirement time could help uncover potential bias. We could encounter bias if the person carrying the hand-held device may have changed how the device was carried as the experiment progressed and this could have changed the strength of the signal.
+
+We will need to read the online data in R. We will use a readData() function to accomplish this.
+```{r tidy=TRUE}
+readData = 
+  function(filename = "http://rdatasciencecases.org/Data/offline.final.trace.txt", 
+           subMacs = c("00:0f:a3:39:e1:c0", "00:0f:a3:39:dd:cd", "00:14:bf:b1:97:8a",
+                       "00:14:bf:3b:c7:c6", "00:14:bf:b1:97:90", "00:14:bf:b1:97:8d",
+                       "00:14:bf:b1:97:81"))
+  {
+    txt = readLines(filename)
+    lines = txt[ substr(txt, 1, 1) != "#" ]
+    tmp = lapply(lines, processLine)
+    offline = as.data.frame(do.call("rbind", tmp), 
+                            stringsAsFactors= FALSE) 
+    
+    names(offline) = c("time", "scanMac", 
+                       "posX", "posY", "posZ", "orientation", 
+                       "mac", "signal", "channel", "type")
+    
+     # keep only signals from access points
+    offline = offline[ offline$type == "3", ]
+    
+    # drop scanMac, posZ, channel, and type - no info in them
+    dropVars = c("scanMac", "posZ", "channel", "type")
+    offline = offline[ , !( names(offline) %in% dropVars ) ]
+    
+    # drop more unwanted access points
+    offline = offline[ offline$mac %in% subMacs, ]
+    
+    # convert numeric values
+    numVars = c("time", "posX", "posY", "orientation", "signal")
+    offline[ numVars ] = lapply(offline[ numVars ], as.numeric)
+
+    # convert time to POSIX
+    offline$rawTime = offline$time
+    offline$time = offline$time/1000
+    class(offline$time) = c("POSIXt", "POSIXct")
+    
+    # round orientations to nearest 45
+    offline$angle = roundOrientation(offline$orientation)
+      
+    return(offline)
+  }
+
+offlineRedo = readData()
+# Check to see if this fucntion matches what we did.
+identical(offline, offlineRedo)
+```
+
+Confirm what variables are global
+```{r tidy=TRUE}
+findGlobals(readData, merge = FALSE)$variables
+```
+
+### Signal Strength Analysis
+
+Using visualization and statistical summaries we now turn to investigating the response variable, signal strength. We are going to have to learn more about how the signals behave before designing a model for IPS. To do this we need to aks the following questions.
+
+  * Signal strength has been measured to an access point multiple times at each location and orientation. So, how do these signal strengths behave? What is the distribution of the repeated measurements at each location and orientation? Does signal strength behave the same at all of the locations? Or, is this a case of location, orientation, and access points having an effect on the distribution?
+  * In perfect conditions (lab setting), signal strength decays linearly with log distance and a simple triangulation using the signal strength from three access points can give an accurate pinpoint to the location of a device. The physical characteristics of a building and the activity in it can add a large amount of "noise" to signal strength measurements. Our questions become how do we describe the relationship between the signal strength and the distance from the device to the access point? How does orientation affect this relationship. Finally, is this relationship the same for all access points?
+  
+#### Distribution of Signal Strength
+
+We need to compare the distribution of signal strengh at different orientations and for different access points. This is going to require us to subdvide our data. We are interested in seeing if these distributions are normal or skewed. We also want to look at the variances.
+
+We will fix a location on the map to see the impact of orientation and signal strength, while the experimenter rotates through the eight angles. We will also measure the MAC addresses seperately because at an orientation of 90 degrees the experimenter may be facing toward one access point and away from another. We will check this with a boxplot.
+```{r tidy=TRUE}
+bwplot(signal ~ factor(angle) | mac, data = offline,
+        subset = posX == 2 & posY == 12
+                  & mac != "00:0f:a3:39:dd:cd",
+        layout = c(2,3))
+```
+
+The signal strength does vary with the orientation for both close and distant access points. Recall from the summary section that signal strengths are measured in negative values.
+```{r tidy=TRUE}
+summary(offline$signal)
+```
+
+The small values (-98) are weaker signals, while the larger values are the stronger signals. When other locations are examined we see a simular dependence of signal strength on angle.
+```{r tidy=TRUE}
+pdf(file = "Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
+oldPar = par(mar = c(3.1, 3, 1, 1))
+
+densityplot( ~ signal | mac + factor(angle), data = offline,
+             subset = posX == 24 & posY == 4 & 
+                         mac != "00:0f:a3:39:dd:cd",
+             bw = 0.5, plot.points = FALSE)
+
+par(oldPar)
+dev.off()
+```
+
+Many of the distributions in figure 3 look normal, but there are some serious deviations with secondary modes and skewness. The center of the distribution does vary with the angle and MAC address. This would be indictive of a relationship.
+
+Basically we would need thousands of boxplots to see all of the relationships, we don't have time for that. We will examine measures of center and measures of spread of signal strength for all location-orientation-access point combinations. For each combination we basically have around 100 observations. To compute summary statistics for these various combinations we need to make a factor that contains all of the unique combinations of the observed (x,y) pairs for the 166 locations.
+
+![Figure 3: Distribution of Signal by Angle for Each Access Point. *The density curves shown for signal strengths are measured at the position x = 24 and y = 4. Many look normal, with others look like there is skew present*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_DensitySignalByMacAngle.pdf)
+
+```{r tidy=TRUE}
+offline$posXY <- paste(offline$posX, offline$posY, sep = "-")
+```
+Now, we create a list of data frames for every combination of (x, y), angle, and access point as follows
+```{r tidy=TRUE}
+byLocAngleAP <- with(offline, 
+                    by(offline, list(posXY, angle, mac), 
+                       function(x) x))
+```
+
+We should be able to calculate summary statistics on each of these data frames with
+```{r tidy=TRUE}
+signalSummary = 
+  lapply(byLocAngleAP,            
+         function(oneLoc) {
+           ans = oneLoc[1, ]
+           ans$medSignal = median(oneLoc$signal)
+           ans$avgSignal = mean(oneLoc$signal)
+           ans$num = length(oneLoc$signal)
+           ans$sdSignal = sd(oneLoc$signal)
+           ans$iqrSignal = IQR(oneLoc$signal)
+           ans
+           })
+
+offlineSummary = do.call("rbind", signalSummary)
+```
+
+Now we take our results from above and take a visual look at the measures of spread with boxplots. Average signal will be converted to a categorical variable for this exercise.
+```{r tidy=TRUE}
+breaks = seq(-90, -30, by = 5)
+bwplot(sdSignal ~ cut(avgSignal, breaks = breaks),
+       data = offlineSummary, 
+       subset = mac != "00:0f:a3:39:dd:cd",
+       xlab = "Mean Signal", ylab = "SD Signal")
+```
+
+We see that weakest signals have the smaller standard deviation and it would appear that as signal strength increases so does the standard deviation. This is going to be an important concept going into modeling.
+
+We can examine the skew of signal strength by plotting the difference avgSignal - medSignal, against the number of observations. We are going to use a smooth scatter to help with over plotting. We will also add a local average of the difference between the mean and the median to better help address the size.
+
+```{r tidy=TRUE}
+with(offlineSummary,
+     smoothScatter((avgSignal - medSignal) ~ num,
+                   xlab = "Number of Observations", 
+                   ylab = "mean - median"))
+abline(h = 0, col = "#984ea3", lwd = 2)
+
+lo.obj = 
+  with(offlineSummary,
+       loess(diff ~ num, 
+             data = data.frame(diff = (avgSignal - medSignal),
+                               num = num)))
+
+lo.obj.pr = predict(lo.obj, newdata = data.frame(num = (70:120)))
+lines(x = 70:120, y = lo.obj.pr, col = "#4daf4a", lwd = 2)
+```
+
+The above comparison fo mean and median signal srength displays a smoothed scatter plot. The difference between the mean and meadian signal strength for each combination of location, access point and angle against the number of observations. The differences are close to zero with a typical deviation of 1 to 2 bBm.
+
+Another plot we are going to try is with the use of predictSurface() to predict the value for the fitted surface at a grid of the observed posX and posY values with a contour plot. This is simular to what you see in a topographical map. The areas where we have a strong signal corresponds to the higher evelvated areas of a contour map. Just like in the last visualization we want to control for the access point and the orientation. We will begin by selecting one MAC address and one orientation to examine.
+```{r tidy=TRUE}
+oneAPAngle <- subset(offline, mac == subMacs[5] & angle == 0)
+```
+We can make a topographical map using color, just like a heatmap. The fields package uses the method of thin plate splines to fit a surface to the signal strength value at the observed locations. 
+```{r tidy=TRUE}
+oneAPAngle = subset(offlineSummary, 
+                    mac == subMacs[5] & angle == 0)
+
+smoothSS = Tps(oneAPAngle[, c("posX","posY")], 
+               oneAPAngle$avgSignal)
+
+vizSmooth = predictSurface(smoothSS)
+
+plot.surface(vizSmooth, type = "C")
+
+points(oneAPAngle$posX, oneAPAngle$posY, pch=19, cex = 0.5)
+
+surfaceSS = function(data, mac, angle = 45) {
+  require(fields)
+  oneAPAngle = data[ data$mac == mac & data$angle == angle, ]
+  smoothSS = Tps(oneAPAngle[, c("posX","posY")], 
+                 oneAPAngle$avgSignal)
+  vizSmooth = predictSurface(smoothSS)
+  plot.surface(vizSmooth, type = "C", 
+               xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+  points(oneAPAngle$posX, oneAPAngle$posY, pch=19, cex = 0.5) 
+}
+
+parCur = par(mfrow = c(2,2), mar = rep(1, 4))
+
+mapply(surfaceSS, mac = subMacs[ rep(c(5, 1), each = 2) ], 
+       angle = rep(c(0, 135), 2),
+       data = list(data = offlineSummary))
+ 
+par(parCur)
+```
+
+This figure is telling us that the location of the access point is the dark red region at the top of the "hill". We can also see the effect of the orientation on signel strength. In addition we can also detect a corridor effect. The signal is greater relative to the distance along the corridors where the signals are not blocked by walls.
