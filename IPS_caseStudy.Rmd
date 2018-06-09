@@ -294,3 +294,58 @@ offline <- offline[ , "channel" != names(offline)]
 ```
 
 #### Explore the Position of the Hand-Held Device
+
+Finally, let's look at the position variables, posX and posY. How many different locations do we have data? Using the by() function we can add up the numbers of rows in our data for each unique (x,y) combination. This is initiated with by creating a data frame for each location.
+```{r tidy=TRUE}
+locDF <- with(offline,
+            by(offline, list(posX, posY), function(x) x))
+# Check
+length(locDF)
+```
+
+So this list is longer than the number of combinations of actual (x,y) locations that were recorded. Let's check to see if we have missing values.
+```{r tidy=TRUE}
+sum(sapply(locDF, is.null))
+```
+
+Let's drop those combinations where nothing exists. Also we need to confirm how many values we are stuck with.
+```{r tidy=TRUE}
+locDF <- locDF[ !sapply(locDF, is.null) ]
+# Check
+length(locDF)
+```
+
+We can operate on each of these data frame to determine the number of obsercations recorded at each location with:
+```{r tidy=TRUE}
+locCounts <- sapply(locDF, nrow)
+
+# If we want to keep the position information with the lcoation, we do this with
+locCounts <- sapply(locDF,
+                    function(df)
+                      c(df[1, c("posX", "posY")], count = nrow(df)))
+# Confirm we have a matrix
+class(locCounts)
+# Confirm 3 rows
+dim(locCounts)
+# Examine a few of the counts
+locCounts[ , 1:8]
+```
+
+At each position we roughly have 5,500 recordings at each position. If we think about it, with 8 orientations X 110 replications X 7 access points, which is 6,100 signal strenght measurements.
+
+We can visualize all 166 counts by adding the counts as text at their respective locations, changing the szize and angle of the characters to avoid overlapping text. We first transpose the matrix to keep the locations as columns we then make the plot with:
+```{r tidy=TRUE}
+pdf(file = "Geo_XYByCount.pdf", width = 10)
+oldPar = par(mar = c(3.1, 3.1, 1, 1))
+
+locCounts = t(locCounts)
+plot(locCounts, type = "n", xlab = "", ylab = "")
+text(locCounts, labels = locCounts[,3], cex = .8, srt = 45)
+
+par(oldPar)
+dev.off()
+```
+
+This picture in figure 2 should look familar. It looks just like our floorplan from figure 1. We can see that there are roughly the same number signals detected at each location.
+
+![Figure 2: Counts of signals at each position. *Plotted at each location in the building is the total number of signals detected from all access points for the offline data. In a perfect world there is 110 signals measured with 8 angles for each 6 access points for a total of 5,280 recordings. These data include a 7th MAC address and not all signals were detected, so there are about 5,500 recordings at each location.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_XYByCount.pdf)
