@@ -2,7 +2,7 @@
 title: "Predicting Location via Indoor Positioning Systems"
 author: "Mike Crowder, Brian Kolovich, Brandon Lawerance, Geardo Garza"
 date: "6/2/2018"
-output: html_document
+output: pdf_document
 ---
 <style>
 body {
@@ -261,3 +261,36 @@ with(offline, boxplot(orientation ~ angle,
 ```
 
 Our new angle variable worked, the outlier at the 0 degree at the top left are the values near 360 degrees that have been mapped to zero.
+
+#### MAC Address Exploration
+
+From the summary function above we observed that 126,529 occurrences of the address 00:14:br:3b:c7:c6, and the exact same number of occurrences of channel 2432000000. This would lead us to belive that there is one-to-one mapping. To prove this let's run a couple of test.
+```{r tidy=TRUE}
+c(length(unique(offline$mac)), length(unique(offline$channel)))
+```
+
+We find that there are 12 MAC addresses and eight channels. If we remember, there were only six access points. So why do see that there are eight channels and 12 MAC addresses? Re-reading the documentation we can see that there are additional access points that are not part of the testing area. These were not on the floor plan in figure 1. We need to check the counts of observations for the various MAC addresses.
+```{r tidy=TRUE}
+table(offline$mac)
+```
+
+So, we can see that the first, and last two MAC addresses are not close to the testing area. They could have not been working for the short amount of time during the measurement process. These addresses also don't have as high of counts.
+
+The documenation tells us that the access points consist of five Linksys/Cisco and one Lancom L-54g routers. Using [MAC Address Lookup](http://coffer.com/mac_find/) we find that the MAC addresses that start with 00:14:bf belong to Linksys, the devices that start with 00:0f:a3 belong to Alpha Networks, and Lancom devices start with 00:a0:57. This means that there is a discrepancy with the documentation. With this known we will keep the top seven devices.
+```{r tidy=TRUE}
+subMacs <- names(sort(table(offline$mac), decreasing = TRUE))[1:7]
+offline <- offline[ offline$mac %in% subMacs, ]
+```
+
+Let's validate by creating a table of counts for the remaining MACxchannel combinations and confirm there is one non-zero entry in each row.
+```{r tidy=TRUE}
+macChannel <- with(offline, table(mac, channel))
+apply(macChannel, 1, function(x) sum(x > 0))
+```
+
+Now we do see that there is a one-to-one relationship between MAC address and channel for the seven devices. From here we can remove channel from offline.
+```{r tidy=TRUE}
+offline <- offline[ , "channel" != names(offline)]
+```
+
+#### Explore the Position of the Hand-Held Device
