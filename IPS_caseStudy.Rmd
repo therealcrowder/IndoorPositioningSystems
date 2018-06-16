@@ -187,7 +187,7 @@ numVars = c("time", "posX", "posY", "posZ",
 offline[ numVars ] =  lapply(offline[ numVars ], as.numeric)
 ```
 
-The device could use a change to something that is more compreshensible than numbers 1 and 3. To facilitate this we can turn the variable into a factor with the levels, of "adhoc" and "access point". However, we will use only the signal strengths measured to the fix access points to develop and test our model. With this information now in hand we will remove records for adhoc measurements and remove the type variable from our data frame.
+The device could use a change to something that is more readable than numbers 1 and 3. To facilitate this we can turn the variable into a factor with the levels, of "adhoc" and "access point". However, we will use only the signal strengths measured to the fix access points to develop and test our model. With this information now in hand we will remove records for adhoc measurements and remove the type variable from our data frame.
 ```{r tidy=TRUE}
 offline = offline[ offline$type == "3", ]
 offline = offline[ , "type" != names(offline) ]
@@ -196,7 +196,7 @@ dim(offline)
 
 This removed over 100K observations from our data frame.
 
-From here we now consider the variable time. From the docuementation, time is measured in the number of milliseconds from midnight on January 1st, 1970. We are able to scale the value of time to seconds and then simpy set the class of the time element in order to see the values as date-times in R. We will keep the more accurate time in rawTime in the case it is needed at a later time for analysis.
+From here we now consider the variable time. From the documentation, time is measured in the number of milliseconds from midnight on January 1st, 1970. We are able to scale the value of time to seconds and then simply set the class of the time element in order to see the values as date-times in R. We will keep the more accurate time in rawTime in the case it is needed at a later time for analysis.
 ```{r tidy=TRUE}
 offline$rawTime = offline$time
 offline$time = offline$time/1000
@@ -231,7 +231,7 @@ offline <- offline[ , !(names(offline) %in% c("scanMac", "posZ"))]
 
 #### Orientation
 
-We have eight values for orientation, or we should. If the reader recalls the observations for orientation were set up to be at levels of 0 degrees, 45 degress, 90 degress and so on.
+We have eight values for orientation, or we should. If the reader recalls the observations for orientation were set up to be at levels of 0 degrees, 45 degrees, 90 degrees and so on.
 ```{r tidy=TRUE}
 length(unique(offline$orientation))
 ```
@@ -244,7 +244,7 @@ plot(ecdf(offline$orientation),
   ylab = "Empirical CDF")
 ```
 
-Form the plot we do see observations clustered around 0, 45, 90 degress and so on, but we clearly have spread between. So, for example we have some 47.5 degress, 358.2 degrees and so on. This is not a loss, this information could be valuable as is. We could also gain value from creating a bin for these values to match the orignial eight values. To accomplish this we are going to create a function.
+Form the plot we do see observations clustered around 0, 45, 90 degrees and so on, but we clearly have spread between. So, for example we have some 47.5 degrees, 358.2 degrees and so on. This is not a loss, this information could be valuable as is. We could also gain value from creating a bin for these values to match the original eight values. To accomplish this we are going to create a function.
 ```{r tidy=TRUE}
 roundOrientation = function(angles) {
   refs = seq(0, by = 45, length  = 9)
@@ -266,7 +266,7 @@ Our new angle variable worked, the outlier at the 0 degree at the top left are t
 
 #### MAC Address Exploration
 
-From the summary function above we observed that 126,529 occurrences of the address 00:14:br:3b:c7:c6, and the exact same number of occurrences of channel 2432000000. This would lead us to belive that there is one-to-one mapping. To prove this let's run a couple of test.
+From the summary function above we observed that 126,529 occurrences of the address 00:14:br:3b:c7:c6, and the exact same number of occurrences of channel 2432000000. This would lead us to believe that there is one-to-one mapping. To prove this let's run a couple of test.
 ```{r tidy=TRUE}
 c(length(unique(offline$mac)), length(unique(offline$channel)))
 ```
@@ -278,7 +278,7 @@ table(offline$mac)
 
 So, we can see that the first, and last two MAC addresses are not close to the testing area. They could have not been working for the short amount of time during the measurement process. These addresses also don't have as high of counts.
 
-The documenation tells us that the access points consist of five Linksys/Cisco and one Lancom L-54g routers. Using [MAC Address Lookup](http://coffer.com/mac_find/) we find that the MAC addresses that start with 00:14:bf belong to Linksys, the devices that start with 00:0f:a3 belong to Alpha Networks, and Lancom devices start with 00:a0:57. This means that there is a discrepancy with the documentation. With this known we will keep the top seven devices.
+The documentation tells us that the access points consist of five Linksys/Cisco and one Lancom L-54g routers. Using [MAC Address Lookup](http://coffer.com/mac_find/) we find that the MAC addresses that start with 00:14:bf belong to Linksys, the devices that start with 00:0f:a3 belong to Alpha Networks, and Lancom devices start with 00:a0:57. This means that there is a discrepancy with the documentation. With this known we will keep the top seven devices.
 ```{r tidy=TRUE}
 subMacs <- names(sort(table(offline$mac), decreasing = TRUE))[1:7]
 offline <- offline[ offline$mac %in% subMacs, ]
@@ -317,7 +317,7 @@ locDF <- locDF[ !sapply(locDF, is.null) ]
 length(locDF)
 ```
 
-We can operate on each of these data frame to determine the number of obsercations recorded at each location with:
+We can operate on each of these data frame to determine the number of observations recorded at each location with:
 ```{r tidy=TRUE}
 locCounts <- sapply(locDF, nrow)
 
@@ -333,9 +333,9 @@ dim(locCounts)
 locCounts[ , 1:8]
 ```
 
-At each position we roughly have 5,500 recordings at each position. If we think about it, with 8 orientations X 110 replications X 7 access points, which is 6,100 signal strenght measurements.
+At each position we roughly have 5,500 recordings at each position. If we think about it, with 8 orientations X 110 replications X 7 access points, which is 6,100 signal strength measurements.
 
-We can visualize all 166 counts by adding the counts as text at their respective locations, changing the szize and angle of the characters to avoid overlapping text. We first transpose the matrix to keep the locations as columns we then make the plot with:
+We can visualize all 166 counts by adding the counts as text at their respective locations, changing the size and angle of the characters to avoid overlapping text. We first transpose the matrix to keep the locations as columns we then make the plot with:
 ```{r tidy=TRUE}
 pdf(file = "Geo_XYByCount.pdf", width = 10)
 oldPar = par(mar = c(3.1, 3.1, 1, 1))
@@ -348,11 +348,11 @@ par(oldPar)
 dev.off()
 ```
 
-This picture in figure 2 should look familar. It looks just like our floorplan from figure 1. We can see that there are roughly the same number signals detected at each location.
+This picture in figure 2 should look familiar. It looks just like our floorplan from figure 1. We can see that there are roughly the same number signals detected at each location.
 
 ![Figure 2: Counts of signals at each position. *Plotted at each location in the building is the total number of signals detected from all access points for the offline data. In a perfect world there is 110 signals measured with 8 angles for each 6 access points for a total of 5,280 recordings. These data include a 7th MAC address and not all signals were detected, so there are about 5,500 recordings at each location.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_XYByCount.pdf)
 
-We have examined all of the variables with exception of time and signal. The process has helped us clean our data and reduce it to those records that are releant to our analysis. We now leave the examination of the signals to the next section where we study the it's distributional properties. Time is not directly related to our model, but it does give us the order in which the observations were taken. In an expirement time could help uncover potential bias. We could encounter bias if the person carrying the hand-held device may have changed how the device was carried as the experiment progressed and this could have changed the strength of the signal.
+We have examined all of the variables with exception of time and signal. The process has helped us clean our data and reduce it to those records that are relevant to our analysis. We now leave the examination of the signals to the next section where we study the it's distributional properties. Time is not directly related to our model, but it does give us the order in which the observations were taken. In an experiment time could help uncover potential bias. We could encounter bias if the person carrying the hand-held device may have changed how the device was carried as the experiment progressed and this could have changed the strength of the signal.
 
 We will need to read the online data in R. We will use a readData() function to accomplish this.
 ```{r tidy=TRUE}
@@ -409,16 +409,16 @@ findGlobals(readData, merge = FALSE)$variables
 
 ### Signal Strength Analysis
 
-Using visualization and statistical summaries we now turn to investigating the response variable, signal strength. We are going to have to learn more about how the signals behave before designing a model for IPS. To do this we need to aks the following questions.
+Using visualization and statistical summaries we now turn to investigating the response variable, signal strength. We are going to have to learn more about how the signals behave before designing a model for IPS. To do this we need to ask the following questions.
 
   * Signal strength has been measured to an access point multiple times at each location and orientation. So, how do these signal strengths behave? What is the distribution of the repeated measurements at each location and orientation? Does signal strength behave the same at all of the locations? Or, is this a case of location, orientation, and access points having an effect on the distribution?
   * In perfect conditions (lab setting), signal strength decays linearly with log distance and a simple triangulation using the signal strength from three access points can give an accurate pinpoint to the location of a device. The physical characteristics of a building and the activity in it can add a large amount of "noise" to signal strength measurements. Our questions become how do we describe the relationship between the signal strength and the distance from the device to the access point? How does orientation affect this relationship. Finally, is this relationship the same for all access points?
   
 #### Distribution of Signal Strength
 
-We need to compare the distribution of signal strengh at different orientations and for different access points. This is going to require us to subdvide our data. We are interested in seeing if these distributions are normal or skewed. We also want to look at the variances.
+We need to compare the distribution of signal strength at different orientations and for different access points. This is going to require us to subdivide our data. We are interested in seeing if these distributions are normal or skewed. We also want to look at the variances.
 
-We will fix a location on the map to see the impact of orientation and signal strength, while the experimenter rotates through the eight angles. We will also measure the MAC addresses seperately because at an orientation of 90 degrees the experimenter may be facing toward one access point and away from another. We will check this with a boxplot.
+We will fix a location on the map to see the impact of orientation and signal strength, while the experimenter rotates through the eight angles. We will also measure the MAC addresses separately because at an orientation of 90 degrees the experimenter may be facing toward one access point and away from another. We will check this with a boxplot.
 ```{r tidy=TRUE}
 bwplot(signal ~ factor(angle) | mac, data = offline,
         subset = posX == 2 & posY == 12
@@ -431,7 +431,7 @@ The signal strength does vary with the orientation for both close and distant ac
 summary(offline$signal)
 ```
 
-The small values (-98) are weaker signals, while the larger values are the stronger signals. When other locations are examined we see a simular dependence of signal strength on angle.
+The small values (-98) are weaker signals, while the larger values are the stronger signals. When other locations are examined we see a similar dependence of signal strength on angle.
 ```{r tidy=TRUE}
 pdf(file = "Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
 oldPar = par(mar = c(3.1, 3, 1, 1))
@@ -445,7 +445,7 @@ par(oldPar)
 dev.off()
 ```
 
-Many of the distributions in figure 3 look normal, but there are some serious deviations with secondary modes and skewness. The center of the distribution does vary with the angle and MAC address. This would be indictive of a relationship.
+Many of the distributions in figure 3 look normal, but there are some serious deviations with secondary modes and skewness. The center of the distribution does vary with the angle and MAC address. This would be indicative of a relationship.
 
 Basically we would need thousands of boxplots to see all of the relationships, we don't have time for that. We will examine measures of center and measures of spread of signal strength for all location-orientation-access point combinations. For each combination we basically have around 100 observations. To compute summary statistics for these various combinations we need to make a factor that contains all of the unique combinations of the observed (x,y) pairs for the 166 locations.
 
@@ -508,9 +508,9 @@ lo.obj.pr = predict(lo.obj, newdata = data.frame(num = (70:120)))
 lines(x = 70:120, y = lo.obj.pr, col = "#4daf4a", lwd = 2)
 ```
 
-The above comparison fo mean and median signal srength displays a smoothed scatter plot. The difference between the mean and meadian signal strength for each combination of location, access point and angle against the number of observations. The differences are close to zero with a typical deviation of 1 to 2 bBm.
+The above comparison of mean and median signal strength displays a smoothed scatter plot. The difference between the mean and median signal strength for each combination of location, access point and angle against the number of observations. The differences are close to zero with a typical deviation of 1 to 2 bBm.
 
-Another plot we are going to try is with the use of predictSurface() to predict the value for the fitted surface at a grid of the observed posX and posY values with a contour plot. This is simular to what you see in a topographical map. The areas where we have a strong signal corresponds to the higher evelvated areas of a contour map. Just like in the last visualization we want to control for the access point and the orientation. We will begin by selecting one MAC address and one orientation to examine.
+Another plot we are going to try is with the use of predictSurface() to predict the value for the fitted surface at a grid of the observed posX and posY values with a contour plot. This is similar to what you see in a topographical map. The areas where we have a strong signal corresponds to the higher elevated areas of a contour map. Just like in the last visualization we want to control for the access point and the orientation. We will begin by selecting one MAC address and one orientation to examine.
 ```{r tidy=TRUE}
 oneAPAngle <- subset(offline, mac == subMacs[5] & angle == 0)
 ```
@@ -548,4 +548,303 @@ mapply(surfaceSS, mac = subMacs[ rep(c(5, 1), each = 2) ],
 par(parCur)
 ```
 
-This figure is telling us that the location of the access point is the dark red region at the top of the "hill". We can also see the effect of the orientation on signel strength. In addition we can also detect a corridor effect. The signal is greater relative to the distance along the corridors where the signals are not blocked by walls.
+This figure is telling us that the location of the access point is the dark red region at the top of the "hill". We can also see the effect of the orientation on signal strength. In addition we can also detect a corridor effect. The signal is greater relative to the distance along the corridors where the signals are not blocked by walls.
+
+We know that the locations of the access points are based on the floor plan of the building. However, we have not been given the exact location and we don not know the mapping between MAC address and access point. Because of the contour maps that we created we can connect the MAC address to the access point marked on the floor plan. In the upper left plot we see that the dark red area corresponds to the access point in the original floor plan. Since the documentation states that the training data was measured at 1 meter intervals in the building we can estimate the location using those points as references.
+
+To test this we are going to subset our data
+```{r tidy=TRUE}
+offlineSummary <- subset(offlineSummary, mac != subMacs[2])
+```
+
+Now we create a matrix with the positions for the 6 access points on the floor plan.
+```{r tidy=TRUE}
+AP <- matrix( c( 7.5, 6.3, 2.5, -.8, 12.8, -2.8,  
+                1, 14, 33.5, 9.3,  33.5, 2.8),
+            ncol = 2, byrow = TRUE,
+            dimnames = list(subMacs[ -2 ], c("x", "y") ))
+
+AP
+```
+
+These row name are useful when indexing the data.
+
+To examine the relationship between signal strength and distance from the access point, we need to compute the distance from the locations of the device emitting the signal to the access point receiving the signal. First, we compute the difference for the y coordinates.
+```{r tidy=TRUE}
+diffs <- offlineSummary[ , c("posX", "posY")] -
+            AP[ offlineSummary$mac, ]
+```
+Now we use Euclidean distance between the position of the hand-held device and the access point with
+```{r tidy=TRUE}
+offlineSummary$dist <- sqrt(diffs[ , 1]^2 + diffs[ , 2]^2)
+```
+Finally, we make a series of scatter plots for each access point and device orientation.
+```{r tidy=TRUE}
+xyplot(signal ~ dist | factor(mac) + factor(angle), 
+       data = offlineSummary, pch = 19, cex = 0.3,
+       xlab ="distance")
+
+pdf(file="Geo_ScatterSignalDist.pdf", width = 7, height = 10)
+oldPar = par(mar = c(3.1, 3.1, 1, 1))
+
+xyplot(signal ~ dist | factor(mac) + factor(angle), 
+       data = offlineSummary, pch = 19, cex = 0.3,
+       xlab ="distance")
+par(oldPar)
+dev.off()
+```
+
+The scatter plots appear to have curvature in the plots. A log transformation might improve the relationship. The values are negative so that would take some care.
+
+## Methods
+
+### Nearest Neighbor Methods to Predict Location
+
+There are many statistical techniques that can be used to estimate the location of device from the strength of the signal. For this analysis we are going to use a common approach called k-nearest neighbors, or k-NN. This method takes training data where the signal is measured to signal is measured to several access points from known positions in a building. When we get a new observation, a new set of signal strengths for a location that is not known, we find the observation in our training data that is closest to this new observation. For k-nearest neighbors where k is larger than 1, then we find the k closest training points and estimate the new observations position by an aggregation of the positions of the k training points.
+
+#### Preperation of the Test Data
+
+The online data are in the online.final.trace.txt and these observations are our test data. We will use the readData() function from earlier to process the raw data.
+```{r tidy=TRUE}
+macs <- unique(offlineSummary$mac)
+online <- readData("http://rdatasciencecases.org/Data/online.final.trace.txt", subMacs = macs)
+```
+Create a unique location identifier with
+```{r tidy=TRUE}
+online$posXY <- paste(online$posX, online$posY, online$posY, sep = "-")
+# Check
+length(unique(online$posXY))
+```
+
+Check the number of signal strengths recorded at each location with
+```{r tidy=TRUE}
+tabonlineXYA <- table(online$posXY, online$angle)
+tabonlineXYA[1:6, ]
+```
+
+The output would indicate that the signal strengths at one orientation for each location.
+
+We will be computing distances between vectors of 6 signal strengths. We will organize the data in a different structure than we have used thus far. To organize the data we are going have 6 columns of signal strengths. We summarize the online data into the new format providing average signal strength at each location.
+
+```{r tidy=TRUE}
+keepVars = c("posXY", "posX","posY", "orientation", "angle")
+byLoc = with(online, 
+             by(online, list(posXY), 
+                function(x) {
+                  ans = x[1, keepVars]
+                  avgSS = tapply(x$signal, x$mac, mean)
+                  y = matrix(avgSS, nrow = 1, ncol = 6,
+                        dimnames = list(ans$posXY, names(avgSS)))
+                  cbind(ans, y)
+                }))
+
+onlineSummary = do.call("rbind", byLoc)  
+
+dim(onlineSummary)
+```
+
+```{r tidy=TRUE}
+names(onlineSummary)
+```
+
+#### Orientation Choice
+
+In the k-NN model, our goals is to find records in our offline data (training set) that are simular in nature to our new observations. Earlier we saw that orientation can impact the signal strength. To accomplish this we might use all records with an orienation that is within a specified range of the new point's orientation. Our observations were spaced at 45 degree increments. We can use those number of neighboring angles to include from the training data. As an example, we can use one orientation then we include training data with angles that match the rounded orientation value of the new observation. In the case we want two orientation we would pick two multiples of 45 that flank the new observations orientation. So, for three we the closest 45 degree increment and one on either side of it and so on. You may get where I am going here, for m the number of angles and angleNewObs the angle of the new observations, our angles include from our training set. Here is how this looks in code:
+
+```{r tidy=TRUE}
+m <- 3; angleNewObs <- 230
+refs <- seq(0, by = 45, length = 8)
+nearestAngle <- roundOrientation(angleNewObs)
+
+if (m %% 2 == 1) {
+  angles = seq(-45 * (m-1) /2, 45 * (m-1) /2, length = m)
+} else {
+  m = m+1
+  angles = seq(-45 * (m-1) /2, 45 * (m-1) /2, length = m)
+  if (sign(angleNewObs - nearestAngle) > -1)
+    angles = angles[ -1 ]
+  else
+    angles = angles[ -m ]
+}
+
+## m odd and even are handled seperatly. Map angles to refs
+## Adjustments
+angles <- angles + nearestAngle
+angles[angles < 0] = angles[ angles < 0 ] + 360
+angles[angles > 360] = angles[ angles > 360 ] - 360
+```
+
+Now that we have the desired angles we need to subset the observations.
+```{r tidy=TRUE}
+offlineSubset <-
+  offlineSummary[ offlineSummary$angle %in% angles, ]
+```
+
+Now we aggregate the signal strengths from the angles and create a data strcture that is simular to onlineSummary.
+```{r tidy=TRUE}
+reshapeSS <- function(data, varSignal = "signal",
+                      keepVars = c("posXY", "posX","posY")) {
+  byLocation <-
+    with(data, by(data, list(posXY),
+                  function(x) {
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                              dimnames = list(ans$posXY,
+                                              names(avgSS)))
+                    cbind(ans, y)
+                  }))
+  
+  newDataSS <- do.call("rbind", byLocation)
+  return(newDataSS)
+}
+```
+
+Summarize and reshape offlineSubset
+```{r}
+trainSS <- reshapeSS(offlineSubset, varSignal = "avgSignal")
+```
+
+Reshape function with the same logic as above
+```{r tidy=TRUE}
+trainSS = reshapeSS(offlineSubset, varSignal = "avgSignal")
+
+selectTrain = function(angleNewObs, signals = NULL, m = 1){
+  # m is the number of angles to keep between 1 and 5
+  refs = seq(0, by = 45, length  = 8)
+  nearestAngle = roundOrientation(angleNewObs)
+  
+  if (m %% 2 == 1) 
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  else {
+    m = m + 1
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+    if (sign(angleNewObs - nearestAngle) > -1) 
+      angles = angles[ -1 ]
+    else 
+      angles = angles[ -m ]
+  }
+  angles = angles + nearestAngle
+  angles[angles < 0] = angles[ angles < 0 ] + 360
+  angles[angles > 360] = angles[ angles > 360 ] - 360
+  angles = sort(angles) 
+  
+    offlineSubset = signals[ signals$angle %in% angles, ]
+  reshapeSS(offlineSubset, varSignal = "avgSignal")
+}
+```
+
+```{r tidy=TRUE}
+train130 <- selectTrain(130, offlineSummary, m = 3)
+head(train130)
+# Should be 166
+length(train130[[1]])
+```
+
+### Let's go find some Nearest Neighbors
+
+Like the headline says, lets do some modeling. We now have our training data set so we can predict the location of our new point. We want to look at the distance in terms of signal strength from our training data to the new point. We will need to calculate the distance from the new point to all obseravations in the training set.
+
+We are going to use a function to handle this. The parameters of this function are a numeric vector of six new signal strengths and the return value from selectTrain(). The function will return the locations of the training observations in order of closeness to the new observations.
+
+We subset the ordered locations to estimate the location of the new observation. For some value of k of  nearest neighbors, we can simply average the first k observations. This is where our est XY comes from. 
+
+We don't take simple averages, for example, we can use weights in the average that are inversely proportional to the distance in signal strength from the test observation. For this case we have to return the distance values from the findNN() function. This alternative approach allows to include the k points that are close, but to differentiate between them by how close they actually are from the new observation's signals. The weights might be:
+
+\frac{1/d_i}{sum_{i=1}^k 1/d_i}
+
+For the i-th closest neighboring observations where d, is the distance from our new point to that nearest reference point. We may want to consider different metrics. We have used Euclidean distance, but we may want to try Manhattan distance. One could also use the medians and not average when combining neighbors predict (x,y). This would be useful if the values we are averaging are skewed.
+
+Prediction is accomplished with our predXY function. To recap we have 3 functions, we find our neighbors, we estimate our neighbors and we predict where our x and y are going to be.
+```{r tidy=TRUE}
+findNN <- function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+    function(x) x - newSignal)
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) )
+  closest = order(dists)
+  return(trainSubset[closest, 1:3 ])
+}
+
+predXY <- function(newSignals, newAngles, trainData, 
+  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    closeXY[[i]] = 
+      findNN(newSignal = as.numeric(newSignals[i, ]), trainSS)
+  }
+  
+  estXY <- lapply(closeXY, 
+    function(x) sapply(x[ , 2:3], 
+      function(x) mean(x[1:k])))
+  estXY = do.call("rbind", estXY)
+  return(estXY)
+}
+```
+
+We will begin the modeling process with three nearest neighbors and three orientations.
+```{r tidy=TRUE}
+estXYk3 <- predXY(newSignals = onlineSummary[ , 6:11],
+                  newAngles = onlineSummary[ , 4],
+                  offlineSummary, numAngles = 3, k = 3)
+
+estXYk1 <- predXY(newSignals = onlineSummary[ , 6:11], 
+                  newAngles = onlineSummary[ , 4], 
+                  offlineSummary, numAngles = 3, k = 1)
+
+calcError <- function(estXY, actualXY)
+                sum( rowSums( (estXY - actualXY)^2) )
+
+## Apply the functions to our two sets
+actualXY <- onlineSummary[ , c("posX", "posY")]
+sapply(list(estXYk1, estXYk3), calcError, actualXY)
+```
+
+What is this telling us, well not much from our numbers, we need to visualize the information to gain any intellegence out of our models.
+
+```{r tidy=TRUE}
+floorErrorMap <- function(estXY, actualXY, trainPoints = NULL, AP = NULL){
+  
+  plot(0, 0, xlim = c(0, 35), ylim = c(-3, 15), type = "n",
+    xlab = "", ylab = "", axes = FALSE)
+  box()
+  if ( !is.null(AP) ) points(AP, pch = 15)
+  if ( !is.null(trainPoints) )
+    points(trainPoints, pch = 19, col="grey", cex = 0.6)
+  
+  points(x = actualXY[, 1], y = actualXY[, 2], 
+    pch = 19, cex = 0.8 )
+  points(x = estXY[, 1], y = estXY[, 2], 
+    pch = 8, cex = 0.8 )
+  segments(x0 = estXY[, 1], y0 = estXY[, 2],
+    x1 = actualXY[, 1], y1 = actualXY[ , 2],
+    lwd = 2, col = "red")
+}
+
+trainPoints <- offlineSummary[ offlineSummary$angle == 0 & 
+    offlineSummary$mac == "00:0f:a3:39:e1:c0" ,
+  c("posX", "posY")]
+
+pdf(file="GEO_FloorPlanK3Errors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk3, onlineSummary[ , c("posX","posY")], 
+  trainPoints = trainPoints, AP = AP)
+par(oldPar)
+dev.off()
+
+pdf(file="GEO_FloorPlanK1Errors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk1, onlineSummary[ , c("posX","posY")], 
+  trainPoints = trainPoints, AP = AP)
+par(oldPar)
+dev.off()
+
+```
+
+If we look at the figures in Figure 4 and 5. We can see that our three nearest neighbors (Figure 5) gave us some tighter looking clusters than our single nearest neighbor did(Figure 4). There is a valid question from this and that is that another number nearest neighbors may yield better results.
+
+![Figure 4: Floor plan with single NN showing Predicted and Actual Locations. *The red line segments connect the test locations in BLACK dots to their predicted locations ASTERISKS.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_FloorPlan1KErrors.pdf)
+
+![Figure 5: Floor plan with 3 NN's showing Predicted and Actual Locations. *The red line segments connect the test locations in BLACK dots to their predicted locations ASTERISKS.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_FloorPlan3KErrors.pdf)
