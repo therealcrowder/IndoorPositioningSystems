@@ -751,7 +751,7 @@ We subset the ordered locations to estimate the location of the new observation.
 
 We don't take simple averages, for example, we can use weights in the average that are inversely proportional to the distance in signal strength from the test observation. For this case we have to return the distance values from the findNN() function. This alternative approach allows to include the k points that are close, but to differentiate between them by how close they actually are from the new observation's signals. The weights might be:
 
-\frac{1/d_i}{sum_{i=1}^k 1/d_i}
+$$\frac{1/d_i}{\sum_{i=1}^k 1/d_i}$$
 
 For the i-th closest neighboring observations where d, is the distance from our new point to that nearest reference point. We may want to consider different metrics. We have used Euclidean distance, but we may want to try Manhattan distance. One could also use the medians and not average when combining neighbors predict (x,y). This would be useful if the values we are averaging are skewed.
 
@@ -802,7 +802,7 @@ actualXY <- onlineSummary[ , c("posX", "posY")]
 sapply(list(estXYk1, estXYk3), calcError, actualXY)
 ```
 
-What is this telling us, well not much from our numbers, we need to visualize the information to gain any intellegence out of our models.
+What is this telling us? Well, not much from our numbers, we need to visualize the information to gain any intellegence out of our models.
 
 ```{r tidy=TRUE}
 floorErrorMap <- function(estXY, actualXY, trainPoints = NULL, AP = NULL){
@@ -845,6 +845,156 @@ dev.off()
 
 If we look at the figures in Figure 4 and 5. We can see that our three nearest neighbors (Figure 5) gave us some tighter looking clusters than our single nearest neighbor did(Figure 4). There is a valid question from this and that is that another number nearest neighbors may yield better results.
 
-![Figure 4: Floor plan with single NN showing Predicted and Actual Locations. *The red line segments connect the test locations in BLACK dots to their predicted locations ASTERISKS.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_FloorPlan1KErrors.pdf)
+![Figure 4: Floor plan with single NN showing Predicted and Actual Locations. *The red line segments connect the test locations in BLACK dots to their predicted locations ASTERISKS.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/GEO_FloorPlanK1Errors.pdf)
 
-![Figure 5: Floor plan with 3 NN's showing Predicted and Actual Locations. *The red line segments connect the test locations in BLACK dots to their predicted locations ASTERISKS.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/Geo_FloorPlan3KErrors.pdf)
+![Figure 5: Floor plan with 3 NN's showing Predicted and Actual Locations. *The red line segments connect the test locations in BLACK dots to their predicted locations ASTERISKS.*](/Users/mcrowder/Documents/Grad School/Quant World/IndoorPositioningSystemsPrediction/IPS/GEO_FloorPlanK3Errors.pdf)
+
+### Cross-Validation
+
+The choice of k, the number of neighbors to include in the estimate of a new observation's position is at it's core a model selection problem. In a perfect world we want to choose the value of k independent of our test data so that we do not overfit the model to the training data. The method of v-fold cross-validation can help us to not overfit. The idea behind this tells us to divide our training data into v non-overlapping subsets of equal size. Then, for each subset, we build models with the data that are not in that subset. From here we assess the predictive ability of the model using the subset that was left out. This is then repeated on the model fitting and assessment for each of the v folds and aggregate the prediction errors across the folds.
+
+There exist software that automatically does this and offers several options for cross-validation in the model building process. Some programs offer sugguestions based on your data. However, at the end of the day the analyst or data scientist must be able to use their judgement to find the best method based on the factors, and question at hand.
+
+In our nearest neighbor scenario, we will use all eight orientations and six MAC addresses with each location. We will cross-validate on the 166 locations. Suppose that we take v = 11; so each fold has floor(166/v), or 15 locations. We can randomly select these locations with:
+```{r tidy=TRUE}
+v <- 11
+permuteLocs <- sample(unique(offlineSummary$posXY))
+permuteLocs <- matrix(permuteLocs, ncol = v,
+                      nrow = floor(length(permuteLocs)/v))
+## This will generate a warning message with the call to matrix() because
+## v does not divide evenly into 166, so permuteLocs does not contain all
+## 166 locations. Each subset of 1s5 locations is used as the "online" data.
+onlineFold <- subset(offlineSubset, posXY %in% permuteLocs[ , 1])
+```
+
+We need to summarize these data so that the data structure matches that of onlineSummary. We will need to select an orientation at random. This needs to be done so each observation has only one orientation.
+```{r tidy=TRUE}
+reshapeSS <- function(data, varSignal = "signal", 
+  keepVars = c("posXY", "posX","posY"),
+  sampleAngle = FALSE, 
+  refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+      function(x) {
+        if (sampleAngle) {
+          x = x[x$angle == sample(refs, size = 1), ]}
+        ans = x[1, keepVars]
+        avgSS = tapply(x[ , varSignal ], x$mac, mean)
+        y = matrix(avgSS, nrow = 1, ncol = 6,
+          dimnames = list(ans$posXY,
+            names(avgSS)))
+        cbind(ans, y)
+      }))
+  
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+```
+Summarize and format offline with
+```{r tidy=TRUE}
+offline <- offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
+
+keepVars <- c("posXY", "posX","posY", "orientation", "angle")
+
+onlineCVSummary <- reshapeSS(offline, keepVars = keepVars, 
+  sampleAngle = TRUE)
+```
+
+#### Fold Design
+
+In each fold, we want to find the k-NN estimates for k = 1,2...,K, for some large K. Futhermore, we want to aggregate the errors over the folds. This is done by wrapping our code in loops over the folds and the number of the neighbors. Our K in this chunk will be K = 20.
+```{r tidy=TRUE}
+# This chunk of code takes a few minutes
+onlineFold <- subset(onlineCVSummary, 
+  posXY %in% permuteLocs[ , 1])
+
+offlineFold <- subset(offlineSummary,
+  posXY %in% permuteLocs[ , -1])
+
+estFold <- predXY(newSignals = onlineFold[ , 6:11], 
+  newAngles = onlineFold[ , 4], 
+  offlineFold, numAngles = 3, k = 3)
+
+actualFold <- onlineFold[ , c("posX", "posY")]
+calcError(estFold, actualFold)
+
+K <- 20
+err <- rep(0, K)
+
+for (j in 1:v) {
+  onlineFold = subset(onlineCVSummary, 
+    posXY %in% permuteLocs[ , j])
+  offlineFold = subset(offlineSummary,
+    posXY %in% permuteLocs[ , -j])
+  actualFold = onlineFold[ , c("posX", "posY")]
+  
+  for (k in 1:K) {
+    estFold = predXY(newSignals = onlineFold[ , 6:11],
+      newAngles = onlineFold[ , 4], 
+      offlineFold, numAngles = 3, k = k)
+    err[k] = err[k] + calcError(estFold, actualFold)
+  }
+}
+```
+
+Visualization of the journey:
+```{r tidy=TRUE}
+pdf(file = "Geo_CVChoiceOfK.pdf", width = 10, height = 6)
+oldPar = par(mar = c(4, 3, 1, 1))
+plot(y = err, x = (1:K),  type = "l", lwd= 2,
+  ylim = c(1200, 2100),
+  xlab = "Number of Neighbors",
+  ylab = "Sum of Square Errors")
+
+rmseMin <- min(err)
+kMin <- which(err == rmseMin)[1]
+segments(x0 = 0, x1 = kMin, y0 = rmseMin, col = gray(0.4), 
+  lty = 2, lwd = 2)
+segments(x0 = kMin, x1 = kMin, y0 = 1100,  y1 = rmseMin, 
+  col = grey(0.4), lty = 2, lwd = 2)
+
+#mtext(kMin, side = 1, line = 1, at = kMin, col = grey(0.4))
+text(x = kMin - 2, y = rmseMin + 40, 
+  label = as.character(round(rmseMin)), col = grey(0.4))
+par(oldPar)
+dev.off()
+```
+
+What are looking at in Figure 6 is the sum of squared errors as a function of k. We can see that the errors decrease a lot at first and level out around five. After which, the errors start to increase slowly because the neighbors become too spread out geographically.
+
+![Figure 6: Cross Validation Selction of k. *The line plot shows the sum of squared errors as a function of number of neighbors used in predicting the location of a new observation. The sum of squared errors are obtained with cross-validation of the offline data.*](/Users/mcrowder/Documents/Grad School/QuantWorld/IndoorPositioningSystemsPrediction/IPS/Geo_CVChoiceOfK.pdf)
+
+We will use the value of five for the nearest neighbors that we obtained from cross-validation, and we apply it to our training data to test.
+
+```{r tidy=TRUE}
+estXYk5 <- predXY(newSignals = onlineSummary[ , 6:11],
+                  newAngles = onlineSummary[ , 4],
+                  offlineSummary, numAngles = 3, k = 5)
+# Add up errors in prediction
+calcError(estXYk5, actualXY)
+```
+
+The results with k = 1 and k = 3 were 659 and 307, respectiviely. The choice of k = 5 may not be the optimized value for our online data because the value was chosen without reference to the online data. 
+
+Possible faster code
+```{r tidy=TRUE}
+predXY <- function(newSignals, newAngles, trainData, 
+  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]),
+      trainSS)
+  }
+  
+  estXY = lapply(closeXY, function(x)
+    sapply(x[ , 2:3], 
+      function(x) mean(x[1:k])))
+  estXY = do.call("rbind", estXY)
+  return(estXY)
+}
+```
+
+
