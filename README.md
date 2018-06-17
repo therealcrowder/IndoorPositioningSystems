@@ -19,7 +19,15 @@ The offline dataset onced cleaned contains around 915K observations with nine va
 
 Variable  | Description
 ------------- | -------------
-t | timestamp in milliseconds since midnight, January 1, 1970 UTC
+t | Time of Observation
 id | MAC address of the scanning device
-pos | degree orientation of the user carrying the scanning device
+pos | Degree orientation of the user carrying the scanning device
 MAC | MAC address of a responding peer (i.e. access point or a device in adhoc mode) with values for signal strength in dBm (Decibel-milliwatts)
+orientation | Angle of observation
+signal | Signal strength
+rawTime | timestamp in milliseconds since midnight, January 1, 1970 UTC
+angle | 45 degree cutoff of orientation
+
+Exploratory data analysis (EDA) of this involved some spatial analysis to look at number of recordings at each position and exploring the signal strength within the building. In a perfect world there would be 110 signals measured with eight angles for each of the six access points for a total 5,280 recordings, we come up with about 5,500 recordings at each location in Figure 2.
+
+![](README_files/Geo_XYByCount.pdf)
