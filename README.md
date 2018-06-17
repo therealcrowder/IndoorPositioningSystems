@@ -11,4 +11,4 @@ The motivation behind this analysis is supplied by a case study in the book "Dat
 ### Background
 The data for this analysis is from a the Community Resource for Archiving Wireless Data At Dartmouth (CRAWDAD). The "offline" is a referenced data set that houses signal strengths measured with a hand-held device on a grid of 166 points spaced 1 meter apart located in the hallways of a building at the University of Mannheim in Germany. The floor plan measures 15 by 36 meters. A floor plan is given in Figure 1:
 
-![](README_files/floorPlan.png
+![](README_files/floorPlan.png)
