@@ -37,3 +37,7 @@ Exploratory data analysis (EDA) of this involved some spatial analysis to look a
 To visualize signal stregth we display the observed posX and posY values with a contour plot. This is similar to what is seen in a topographical map. The areas where we have a strong signal corresponds to the higher elevated areas of a contour map. Just like in the last visualization we want to control for the access point and the orientation. We will begin by selecting one MAC address and one orientation to examine.
 
 ![](README_files/Geo_HeatMap.png)
+
+###### Figure 3: This figure is telling us that the location of the access point is the dark red region at the top of the "hill". We can also see the effect of the orientation on signal strength. In addition we can also detect a corridor effect. The signal is greater relative to the distance along the corridors where the signals are not blocked by walls.
+
+
