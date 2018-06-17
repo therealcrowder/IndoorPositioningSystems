@@ -30,4 +30,10 @@ angle | 45 degree cutoff of orientation
 
 Exploratory data analysis (EDA) of this involved some spatial analysis to look at number of recordings at each position and exploring the signal strength within the building. In a perfect world there would be 110 signals measured with eight angles for each of the six access points for a total 5,280 recordings, we come up with about 5,500 recordings at each location in Figure 2.
 
-![](README_files/Geo_XYByCount.pdf)
+![](README_files/Geo_XYByCount.png)
+
+###### Figure 2: Counts of signals at each position. Plotted at each location in the building is the total number of signals detected from all access points for the offline data. In a perfect world there is 110 signals measured with 8 angles for each 6 access points for a total of 5,280 recordings. These data include a 7th MAC address and not all signals were detected, so there are about 5,500 recordings at each location
+
+To visualize signal stregth we display the observed posX and posY values with a contour plot. This is similar to what is seen in a topographical map. The areas where we have a strong signal corresponds to the higher elevated areas of a contour map. Just like in the last visualization we want to control for the access point and the orientation. We will begin by selecting one MAC address and one orientation to examine.
+
+![](README_files/Geo_HeatMap.png)
